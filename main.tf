@@ -263,10 +263,36 @@ data "aws_iam_policy_document" "default" {
   }
 }
 
-resource "aws_elasticsearch_domain_policy" "default" {
-  count           = module.this.enabled && (length(var.iam_authorizing_role_arns) > 0 || length(var.iam_role_arns) > 0) ? 1 : 0
-  domain_name     = module.this.id
-  access_policies = join("", data.aws_iam_policy_document.default.*.json)
+# resource "aws_elasticsearch_domain_policy" "default" {
+#   count           = module.this.enabled && (length(var.iam_authorizing_role_arns) > 0 || length(var.iam_role_arns) > 0) ? 1 : 0
+#   domain_name     = module.this.id
+#   access_policies = join("", data.aws_iam_policy_document.default.*.json)
+# }
+
+data "aws_iam_policy_document" "opensearch" {
+  statement {
+    actions = [
+      "es:*"
+    ]
+    effect = "Allow"
+    principals {
+      type = "AWS"
+      identifiers = [
+        "*"
+      ]
+    }
+    resources = [
+      "${aws_elasticsearch_domain.default[0].arn}/*"
+    ]
+  }
+}
+
+resource "aws_elasticsearch_domain_policy" "this" {
+  domain_name = module.this.id
+  access_policies = data.aws_iam_policy_document.opensearch.json
+  depends_on = [
+    aws_elasticsearch_domain.default[0]
+  ]
 }
 
 module "domain_hostname" {
